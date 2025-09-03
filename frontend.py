@@ -1,49 +1,44 @@
 import streamlit as st
 import requests
 
-# Streamlit page config for fullscreen look
-st.set_page_config(page_title="Chatbot", layout="wide")
+# --- Streamlit page config ---
+st.set_page_config(
+    page_title="Chatbot",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-st.title("💬 Chatbot")
+st.title("💬 CRM Chatbot")
 
-# Initialize chat history in session state
+# Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat history
-for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        with st.chat_message("user"):
-            st.markdown(msg["content"])
-    else:
-        with st.chat_message("assistant"):
-            st.markdown(msg["content"])
+# --- Chat Input ---
+user_input = st.chat_input("Type your question...")
 
-# Input box for user query
-if prompt := st.chat_input("Type your message..."):
-    # Save user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+if user_input:
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": user_input})
 
-    # Call the API
     try:
+        # Send request to backend
         response = requests.post(
-            "https://llama-chatbot-mnko.onrender.com/query/",
-            json={"query": prompt},
-            timeout=60
+            "http://localhost:8080/query/",
+            data={"question": user_input}
         )
+        response.raise_for_status()
 
-        if response.status_code == 200:
-            bot_reply = response.json().get("response", "⚠️ No response field found.")
-        else:
-            bot_reply = f"⚠️ Error {response.status_code}: {response.text}"
+        # ✅ Get only the answer string
+        answer = response.json()["answer"]
 
     except Exception as e:
-        bot_reply = f"⚠️ API call failed: {str(e)}"
+        answer = f"⚠️ Error: {e}"
 
-    # Save bot response
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+    # Add bot reply
+    st.session_state.messages.append({"role": "bot", "content": answer})
 
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
+# --- Display Chat Messages ---
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
